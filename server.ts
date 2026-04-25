@@ -1,6 +1,7 @@
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
+import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
@@ -10,6 +11,75 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// --- Persistent Analytics (JSON file) ---
+const ANALYTICS_FILE = path.join(__dirname, 'analytics.json');
+
+interface AnalyticsData {
+  startTime: string;
+  pageViews: number;
+  analysisAttempts: number;
+  analysisSuccess: number;
+  analysisFailed: number;
+  totalCharsProcessed: number;
+  providers: Record<string, number>;
+  dailyStats: Record<string, { views: number; analyses: number }>;
+}
+
+function loadAnalytics(): AnalyticsData {
+  try {
+    if (fs.existsSync(ANALYTICS_FILE)) {
+      const raw = fs.readFileSync(ANALYTICS_FILE, 'utf-8');
+      return JSON.parse(raw);
+    }
+  } catch (e) {
+    console.error('Failed to load analytics file, starting fresh:', e);
+  }
+  return {
+    startTime: new Date().toISOString(),
+    pageViews: 0,
+    analysisAttempts: 0,
+    analysisSuccess: 0,
+    analysisFailed: 0,
+    totalCharsProcessed: 0,
+    providers: {},
+    dailyStats: {},
+  };
+}
+
+function saveAnalytics() {
+  try {
+    fs.writeFileSync(ANALYTICS_FILE, JSON.stringify(analytics, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('Failed to save analytics:', e);
+  }
+}
+
+const analytics = loadAnalytics();
+
+function getTodayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function trackPageView() {
+  analytics.pageViews++;
+  const today = getTodayKey();
+  if (!analytics.dailyStats[today]) analytics.dailyStats[today] = { views: 0, analyses: 0 };
+  analytics.dailyStats[today].views++;
+  saveAnalytics();
+}
+
+function trackAnalysis(provider: string, success: boolean, chars: number) {
+  analytics.analysisAttempts++;
+  if (success) analytics.analysisSuccess++;
+  else analytics.analysisFailed++;
+  analytics.totalCharsProcessed += chars;
+  analytics.providers[provider] = (analytics.providers[provider] || 0) + 1;
+  const today = getTodayKey();
+  if (!analytics.dailyStats[today]) analytics.dailyStats[today] = { views: 0, analyses: 0 };
+  analytics.dailyStats[today].analyses++;
+  saveAnalytics();
+}
+
 async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
@@ -18,6 +88,7 @@ async function startServer() {
   // Basic diagnostic logging
   app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} - Origin: ${req.headers.origin || 'N/A'}`);
+    if (req.method === 'GET' && req.url === '/') trackPageView();
     next();
   });
 
@@ -48,6 +119,77 @@ async function startServer() {
       },
       port: PORT
     });
+  });
+
+  // Analytics Stats - HTML Dashboard (中文)
+  app.get("/api/stats", (req, res) => {
+    const today = getTodayKey();
+    const todayStats = analytics.dailyStats[today] || { views: 0, analyses: 0 };
+    const uptime = Math.floor((Date.now() - new Date(analytics.startTime).getTime()) / 1000);
+    const uptimeStr = `${Math.floor(uptime / 3600)}小时${Math.floor((uptime % 3600) / 60)}分`;
+    
+    const days = Object.keys(analytics.dailyStats).sort().reverse();
+    const dailyRows = days.map(d => {
+      const s = analytics.dailyStats[d];
+      return `<tr><td>${d}</td><td>${s.views}</td><td>${s.analyses}</td></tr>`;
+    }).join('');
+
+    const providerRows = Object.entries(analytics.providers)
+      .map(([k, v]) => `<tr><td>${k === 'deepseek' ? 'DeepSeek' : '智谱 GLM-4'}</td><td>${v} 次</td></tr>`)
+      .join('');
+
+    const html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>SyncPsyche 统计面板</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #f0f2f5; color: #333; padding: 40px 20px; }
+  .container { max-width: 800px; margin: 0 auto; }
+  h1 { font-size: 24px; font-weight: 800; margin-bottom: 8px; }
+  .subtitle { color: #888; font-size: 13px; margin-bottom: 30px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 30px; }
+  .card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; }
+  .card .num { font-size: 32px; font-weight: 800; color: #1a73e8; }
+  .card .label { font-size: 12px; color: #999; margin-top: 4px; }
+  .card.green .num { color: #34a853; }
+  .card.red .num { color: #ea4335; }
+  .card.orange .num { color: #fbbc04; }
+  h2 { font-size: 16px; font-weight: 700; margin: 24px 0 12px; }
+  table { width: 100%; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-collapse: collapse; }
+  th { background: #f8f9fa; font-size: 12px; color: #666; padding: 12px 16px; text-align: left; font-weight: 600; }
+  td { font-size: 13px; padding: 10px 16px; border-top: 1px solid #f0f0f0; }
+  .footer { margin-top: 30px; font-size: 12px; color: #bbb; text-align: center; }
+</style></head>
+<body>
+<div class="container">
+  <h1>📊 SyncPsyche 统计面板</h1>
+  <p class="subtitle">服务器启动时间：${analytics.startTime} ｜ 已运行：${uptimeStr}</p>
+
+  <div class="grid">
+    <div class="card"><div class="num">${analytics.pageViews}</div><div class="label">总访问次数</div></div>
+    <div class="card green"><div class="num">${analytics.analysisSuccess}</div><div class="label">分析成功</div></div>
+    <div class="card red"><div class="num">${analytics.analysisFailed}</div><div class="label">分析失败</div></div>
+    <div class="card orange"><div class="num">${todayStats.views}</div><div class="label">今日访问</div></div>
+  </div>
+
+  <div class="grid">
+    <div class="card"><div class="num">${analytics.analysisAttempts}</div><div class="label">总分析次数</div></div>
+    <div class="card"><div class="num">${(analytics.totalCharsProcessed / 10000).toFixed(1)}万</div><div class="label">处理字符总量</div></div>
+    <div class="card green"><div class="num">${todayStats.analyses}</div><div class="label">今日分析</div></div>
+    <div class="card"><div class="num">${analytics.analysisAttempts ? Math.round(analytics.analysisSuccess / analytics.analysisAttempts * 100) : 0}%</div><div class="label">成功率</div></div>
+  </div>
+
+  <h2>🔧 各引擎使用情况</h2>
+  <table>${providerRows ? `<tr><th>引擎</th><th>使用次数</th></tr>${providerRows}` : '<tr><td style="text-align:center;padding:20px;color:#999">暂无数据</td></tr>'}</table>
+
+  <h2>📅 每日统计</h2>
+  <table>${dailyRows ? `<tr><th>日期</th><th>访问</th><th>分析</th></tr>${dailyRows}` : '<tr><td style="text-align:center;padding:20px;color:#999">暂无数据</td></tr>'}</table>
+
+  <div class="footer">SyncPsyche Analytics ｜ 数据持久化存储</div>
+</div>
+</body></html>`;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
   });
 
   // API Routes
@@ -133,10 +275,14 @@ async function startServer() {
         throw new Error(`${provider} 响应结构异常: 未找到消息内容 (No message content found)。`);
       }
 
+      const chars = JSON.stringify(content || '').length;
+      trackAnalysis(provider, true, chars);
       console.log(`Analysis successful via ${provider}. Sending response to client.`);
       res.json({ result: messageContent });
     } catch (error: any) {
       clearTimeout(timeoutId);
+      const chars = JSON.stringify(content || '').length;
+      trackAnalysis(provider, false, chars);
       if (error.name === 'AbortError') {
         console.error(`${provider} request timed out after 3 minutes`);
         return res.status(504).json({ 
