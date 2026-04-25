@@ -3,34 +3,32 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useRef } from 'react';
-import { 
-  FileText, 
-  Upload, 
-  Search, 
-  AlertCircle, 
-  CheckCircle2, 
-  MessageSquare, 
-  Brain, 
-  Users, 
-  ShieldAlert,
-  Lightbulb,
-  ArrowRight,
-  RefreshCw,
-  Clock,
-  ChevronRight,
+import {
+  AlertCircle,
   Archive,
-  Flame,
   Book,
-  Moon,
-  Zap,
-  HeartPulse,
-  Sword,
-  Handshake,
+  Brain,
+  ChevronRight,
+  Clock,
   Dna,
-  Scale
+  FileText,
+  Flame,
+  Handshake,
+  HeartPulse,
+  Lightbulb,
+  MessageSquare,
+  Moon,
+  RefreshCw,
+  Scale,
+  Search,
+  ShieldAlert,
+  Sword,
+  Upload,
+  Users,
+  Zap
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
+import React, { useRef, useState } from 'react';
 
 // --- Types ---
 
@@ -89,6 +87,8 @@ interface AnalysisResult {
   }[];
   sampled_segments: {
     period: string;
+    title: string;
+    score: number;
     content: string;
   }[];
   linguistic_sync: {
@@ -432,7 +432,7 @@ export default function App() {
         13. Notable Moments: 提取至少 10 条具代表性的对话瞬间。
 
         MANDATORY: 
-        - 每个阶段 (sampled_segments) 的描述必须客观且具洞察力，字数控制在 150-250 字之间，精准捕捉相处基调，包含具体的对话风格变化、情绪温度、互动节奏等细节。
+        - "sampled_segments" 是对每个阶段的深度分析总结，而不是原文摘录。每个阶段必须包含：一个精炼的短语标题（如"暧昧试探期"、"冲突爆发期"、"冷战僵持期"）、一个 1-100 的好感度评分（score）、以及 150-250 字的深度分析描述，精准捕捉该阶段的相处基调、对话风格变化、情绪温度和互动节奏。
         - 你必须在 "sampled_segments" 数组和 "interaction_evolution" 数组中均按顺序返回 EXACTLY 12 个条目，分别对应输入数据中的 [TIME_SEGMENT_1] 到 [TIME_SEGMENT_12]。
         - 必须输出 "interaction_evolution" 数组，展示完整 12 个阶段的关系模式变迁，每个阶段的 dynamic_change 描述不少于 80 字，深入分析权力结构、情感距离、沟通模式的演变细节。
         - 必须包含至少 15 条具代表性的对话瞬间 (notable_moments)，每条的分析不少于 50 字，深入挖掘潜台词和心理动机。
@@ -453,7 +453,7 @@ export default function App() {
           "user_prescriptions": [{ "user": string, "advice_list": [{ "situation": string, "suggestion": string, "script": string }] }],
           "summary": string,
           "notable_moments": [{ "time": string, "content": string, "analysis": string, "speaker": string }],
-          "sampled_segments": [{ "period": string, "content": string }],
+          "sampled_segments": [{ "period": string, "title": string, "score": number, "content": string }],
           "linguistic_sync": { "slang": string[], "sync_score": number, "sync_description": string },
           "emotional_labor": { "provider": string, "consumer": string, "response_rate": string, "energy_balance": number },
           "chronobiology": { "late_night_ratio": string, "avg_response_time": string, "peak_hours": [{ "hour": number, "intensity": number }] },
@@ -1063,7 +1063,14 @@ export default function App() {
                       <summary className="p-5 text-base font-black text-prof-text cursor-pointer flex justify-between items-center hover:bg-prof-bg/5 list-none">
                         <div className="flex items-center gap-4">
                           <span className="w-8 h-8 flex items-center justify-center bg-prof-accent text-white rounded-full text-xs shadow-md font-mono">{i + 1}</span>
-                          <span className="tracking-tight uppercase">{seg.period || `阶段 ${i + 1}`}</span>
+                          <div className="flex flex-col">
+                            <span className="tracking-tight uppercase">{seg.title || seg.period || `阶段 ${i + 1}`}</span>
+                            {seg.score && (
+                              <span className="text-[10px] font-mono text-prof-muted mt-0.5">
+                                好感度评分：<span className={`font-bold ${seg.score >= 70 ? 'text-green-500' : seg.score >= 40 ? 'text-orange-500' : 'text-red-500'}`}>{seg.score}/100</span>
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <span className="text-prof-accent group-open:rotate-180 transition-transform text-sm font-bold">▼</span>
                       </summary>
