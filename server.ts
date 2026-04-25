@@ -65,7 +65,7 @@ async function startServer() {
       modelName = "glm-4-plus"; 
     } else {
       apiKey = process.env.DEEPSEEK_API_KEY || '';
-      apiUrl = "https://api.deepseek.com/beta/chat/completions"; // V4 Flash is often in beta/compatible endpoints
+      apiUrl = "https://api.deepseek.com/chat/completions";
       modelName = "deepseek-v4-flash";
     }
 
@@ -100,7 +100,7 @@ async function startServer() {
             { role: "system", content: systemInstruction },
             { role: "user", content: `Here is the chat record to analyze:\n\n${content}` }
           ],
-          max_tokens: 8192,
+          max_tokens: 16384,
           response_format: {
             type: "json_object"
           }
