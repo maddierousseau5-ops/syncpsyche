@@ -13,7 +13,7 @@ import {
   MessageSquare, 
   Brain, 
   Users, 
-  ShieldAlert, 
+  ShieldAlert,
   Lightbulb,
   ArrowRight,
   RefreshCw,
