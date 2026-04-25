@@ -217,6 +217,7 @@ export default function App() {
   const [selectedProvider, setSelectedProvider] = useState<'deepseek' | 'zhipu' | 'qwen'>('deepseek');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isAnalyzingRef = useRef(false);
 
   React.useEffect(() => {
     // Check server health on load
@@ -498,8 +499,12 @@ export default function App() {
         console.error("JSON Parse Error:", parseErr, "Raw Text:", apiResult);
         throw new Error("[环节3: 结果解析] AI 响应内容解析失败。模型返回了非标准 JSON 格式。");
       }
+      // 先设置结果，再切换状态，确保结果页面渲染时有数据
       setResult(parsedResult);
-      setState('result');
+      // 使用 requestAnimationFrame 确保 result 状态已更新后再切换页面
+      requestAnimationFrame(() => {
+        setState('result');
+      });
     } catch (err: any) {
       console.error(err);
       let errorMessage = err?.message || 'An error occurred during analysis.';
@@ -524,10 +529,12 @@ export default function App() {
     setTimeout(() => runAnalysis(), 100);
   };
 
-  const reset = () => {
+  const reset = (keepContent = false) => {
+    // 防止被 React 合成事件对象意外调用
+    if (typeof keepContent !== 'boolean') keepContent = false;
     setState('idle');
     setResult(null);
-    setCsvContent('');
+    if (!keepContent) setCsvContent('');
     setError(null);
     setShowTruncateOption(false);
     setTruncationLevel(0);
@@ -1045,9 +1052,10 @@ export default function App() {
                     *本报告基于临床心理学理论模型扫描。分析仅限文本证据，不作为医疗诊断。
                   </p>
                 </div>
-                <button onClick={reset} className="ml-auto text-[10px] font-mono border border-[#ffffff33] px-4 py-2 rounded hover:bg-white/10 transition-colors uppercase font-bold tracking-wider">
+                <button onClick={() => reset()} className="ml-auto text-[10px] font-mono border border-[#ffffff33] px-4 py-2 rounded hover:bg-white/10 transition-colors uppercase font-bold tracking-wider">
                   ↻ 重新分析
                 </button>
+
               </motion.div>
 
               {/* Relationship Evolution Card */}
@@ -1560,11 +1568,12 @@ export default function App() {
                   </button>
                 )}
                 <button 
-                  onClick={reset}
+                  onClick={() => reset(true)}
                   className="bg-prof-sidebar text-white px-8 py-3 rounded-xl font-bold hover:bg-prof-sidebar/80 transition-all flex items-center gap-2"
                 >
                   <RefreshCw className="w-4 h-4" /> REBOOT & RETRY
                 </button>
+
               </div>
             </motion.div>
           )}

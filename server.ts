@@ -262,6 +262,8 @@ async function startServer() {
           customError = errJson.error?.message || errorText;
         } catch(e) {}
 
+        const chars = JSON.stringify(content || '').length;
+        trackAnalysis(provider, false, chars);
         return res.status(aiResponse.status).json({ 
           stage: `后端服务器 -> ${provider} API`,
           error: `${provider} 返回了错误 (${aiResponse.status}): ${customError || aiResponse.statusText}` 
