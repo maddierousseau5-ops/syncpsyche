@@ -194,19 +194,34 @@ async function startServer() {
 
   // API Routes
   app.post("/api/analyze", async (req, res) => {
-    const { content, systemInstruction, provider = 'deepseek' } = req.body;
+    const { content, systemInstruction, provider = 'deepseek', apiKey: userApiKey } = req.body;
     console.log(`[${new Date().toISOString()}] Analysis Request (${provider}) received. Content size: ${JSON.stringify(content || '').length} chars`);
 
+    const apiKeyMode = process.env.API_KEY_MODE || 'provide_free';
     let apiKey = '';
     let apiUrl = '';
     let modelName = '';
 
+    if (apiKeyMode === 'require_own') {
+      // 强制要求用户输入自己的 API Key
+      apiKey = userApiKey || '';
+      if (!apiKey) {
+        return res.status(401).json({
+          stage: "API Key 验证",
+          error: `当前模式要求使用你自己的 API Key。请在弹窗中输入有效的 ${provider} API Key。`
+        });
+      }
+    } else {
+      // provide_free 模式：优先用用户传入的，没有则用环境变量
+      apiKey = userApiKey || '';
+    }
+
     if (provider === 'zhipu') {
-      apiKey = process.env.ZHIPU_API_KEY || '';
+      apiKey = apiKey || process.env.ZHIPU_API_KEY || '';
       apiUrl = "https://open.bigmodel.cn/api/paas/v4/chat/completions";
       modelName = "glm-4-plus"; 
     } else {
-      apiKey = process.env.DEEPSEEK_API_KEY || '';
+      apiKey = apiKey || process.env.DEEPSEEK_API_KEY || '';
       apiUrl = "https://api.deepseek.com/chat/completions";
       modelName = "deepseek-v4-flash";
     }

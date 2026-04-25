@@ -15,6 +15,7 @@ import {
   Flame,
   Handshake,
   HeartPulse,
+  Key,
   Lightbulb,
   MessageSquare,
   Moon,
@@ -215,6 +216,8 @@ export default function App() {
   const [metadata, setMetadata] = useState<{ startDate?: string, endDate?: string, count: number, usedCount?: number } | null>(null);
   const [serverStatus, setServerStatus] = useState<{ alive: boolean, msg: string, providers?: any }>({ alive: false, msg: '正在检测核心引擎...' });
   const [selectedProvider, setSelectedProvider] = useState<'deepseek' | 'zhipu' | 'qwen'>('deepseek');
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [modalApiKey, setModalApiKey] = useState('');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isAnalyzingRef = useRef(false);
@@ -351,9 +354,16 @@ export default function App() {
     reader.readAsText(file);
   };
 
-  const runAnalysis = async () => {
+  const runAnalysis = async (apiKey?: string) => {
     if (!csvContent.trim()) {
       setError('Please provide chat record content (CSV format preferred).');
+      return;
+    }
+
+    // 如果没有传入 API Key，弹出模态框让用户输入
+    if (!apiKey) {
+      setModalApiKey('');
+      setShowApiKeyModal(true);
       return;
     }
 
@@ -473,7 +483,8 @@ export default function App() {
         body: JSON.stringify({ 
           content: finalContent, 
           systemInstruction,
-          provider: selectedProvider 
+          provider: selectedProvider,
+          apiKey
         })
       }).catch(err => {
         console.error("Network level fetch failure:", err);
@@ -487,6 +498,14 @@ export default function App() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         const stage = errorData.stage || '未知环节';
+        
+        // API Key 无效时，弹出模态框让用户重新输入
+        if (response.status === 401 && errorData.stage?.includes('API Key')) {
+          setModalApiKey('');
+          setShowApiKeyModal(true);
+          throw new Error(`API Key 无效或缺失，请重新输入有效的 API Key。`);
+        }
+        
         throw new Error(`[环节2: ${stage}] 服务器返回错误: ${errorData.error || `HTTP ${response.status}`}`);
       }
 
@@ -990,13 +1009,62 @@ export default function App() {
                 )}
 
                 <button 
-                  onClick={runAnalysis}
+                  onClick={() => runAnalysis()}
                   disabled={!csvContent.trim() || !serverStatus.alive}
                   className="mt-8 w-full bg-prof-sidebar text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-prof-sidebar/90 active:scale-[0.98] transition-all disabled:opacity-30 disabled:pointer-events-none uppercase tracking-widest"
                 >
                   {serverStatus.alive ? '启动深度解析 / START ANALYSIS' : '等待引擎就绪... / WAITING FOR ENGINE'}
                   {serverStatus.alive && <ChevronRight className="w-4 h-4" />}
                 </button>
+
+                {/* API Key Modal */}
+                {showApiKeyModal && (
+                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowApiKeyModal(false)}>
+                    <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center gap-3 mb-6">
+                        <Key className="w-6 h-6 text-prof-accent" />
+                        <h3 className="text-lg font-bold text-prof-text">请输入 API Key</h3>
+                      </div>
+                      <p className="text-xs text-prof-muted mb-4 leading-relaxed">
+                        请输入你的 DeepSeek API Key 以继续分析。你的 Key 仅用于本次请求，不会被保存。
+                      </p>
+                      <input
+                        type="password"
+                        value={modalApiKey}
+                        onChange={(e) => setModalApiKey(e.target.value)}
+                        placeholder="sk-..."
+                        className="w-full px-4 py-3 border border-prof-border rounded-xl text-sm font-mono focus:ring-1 focus:ring-prof-accent outline-none mb-4"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && modalApiKey.trim()) {
+                            setShowApiKeyModal(false);
+                            runAnalysis(modalApiKey.trim());
+                          }
+                        }}
+                        autoFocus
+                      />
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => setShowApiKeyModal(false)}
+                          className="flex-1 py-3 rounded-xl border border-prof-border text-sm font-bold text-prof-muted hover:bg-gray-50 transition-colors"
+                        >
+                          取消
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (modalApiKey.trim()) {
+                              setShowApiKeyModal(false);
+                              runAnalysis(modalApiKey.trim());
+                            }
+                          }}
+                          disabled={!modalApiKey.trim()}
+                          className="flex-1 py-3 rounded-xl bg-prof-sidebar text-white text-sm font-bold hover:bg-prof-sidebar/90 transition-colors disabled:opacity-30"
+                        >
+                          确认
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-3 gap-5">
