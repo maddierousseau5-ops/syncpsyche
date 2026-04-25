@@ -1,0 +1,6 @@
+{
+  "name": "SyncPsyche: 1M 深度演变解析 (DeepSeek V4)",
+  "description": "基于 DeepSeek V4 Flash (1M 上下文) 的社会心理学聊天记录分析工具，提供超长文本解析、深度人际洞察与性格全画像。",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

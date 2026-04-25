@@ -1,0 +1,67 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Helvetica Neue", Arial, "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  
+  --color-prof-bg: #f0f2f5;
+  --color-prof-sidebar: #1a237e;
+  --color-prof-accent: #2196f3;
+  --color-prof-text: #333;
+  --color-prof-muted: #666;
+  --color-prof-border: #dcdfe6;
+  --color-prof-warning: #ff4d4f;
+  --color-prof-success: #52c41a;
+  --color-prof-card: #ffffff;
+}
+
+@layer base {
+  body {
+    @apply bg-prof-bg text-prof-text font-sans;
+  }
+}
+
+@layer components {
+  .prof-card {
+    @apply bg-prof-card border border-prof-border rounded-lg p-5 flex flex-col;
+  }
+  
+  .prof-card-title {
+    @apply text-base font-semibold mb-4 flex items-center;
+  }
+  
+  .prof-card-title::before {
+    content: '';
+    @apply inline-block w-1 h-4 bg-prof-accent mr-2 rounded-sm;
+  }
+  
+  .mbti-badge {
+    @apply bg-[#e3f2fd] text-[#1976d2] px-2 py-1 rounded text-xs font-bold my-2 inline-block;
+  }
+  
+  .stat-bar {
+    @apply h-2 bg-[#eeeeee] rounded-full overflow-hidden mt-1;
+  }
+  
+  .stat-fill {
+    @apply h-full bg-prof-accent;
+  }
+  
+  .pattern-tag {
+    @apply inline-block bg-[#f5f5f5] px-2.5 py-1 rounded-full text-xs font-medium m-1 border border-prof-border;
+  }
+  
+  .issue-item {
+    @apply flex items-start gap-2 p-2 bg-[#fff1f0] text-prof-warning rounded text-sm mb-2;
+  }
+  
+  .advice-item {
+    @apply relative pl-4 text-sm leading-relaxed mb-2.5;
+  }
+  
+  .advice-item::before {
+    content: '•';
+    @apply absolute left-0 text-prof-accent font-bold;
+  }
+}
