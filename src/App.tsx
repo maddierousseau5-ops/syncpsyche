@@ -1029,6 +1029,27 @@ export default function App() {
 
           {state === 'result' && result && (
             <>
+              {/* Summary Card - TOP BANNER */}
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="col-span-full prof-card !bg-prof-sidebar !text-white !flex-row gap-6 items-center"
+              >
+                <div className="p-4 bg-[#2b3595] rounded-lg">
+                  <Brain className="w-6 h-6" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-[10px] font-mono uppercase tracking-widest text-[#9fa8da] mb-1">Executive Summary</h3>
+                  <p className="text-base font-medium italic leading-relaxed">“{result.summary}”</p>
+                  <p className="text-[9px] mt-2 opacity-50 uppercase tracking-tighter">
+                    *本报告基于临床心理学理论模型扫描。分析仅限文本证据，不作为医疗诊断。
+                  </p>
+                </div>
+                <button onClick={reset} className="ml-auto text-[10px] font-mono border border-[#ffffff33] px-4 py-2 rounded hover:bg-white/10 transition-colors uppercase font-bold tracking-wider">
+                  ↻ 重新分析
+                </button>
+              </motion.div>
+
               {/* Relationship Evolution Card */}
               <motion.section 
                 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
@@ -1110,27 +1131,6 @@ export default function App() {
                   ))}
                 </div>
               </motion.section>
-
-              {/* Summary Card */}
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="col-span-full prof-card !bg-prof-sidebar !text-white !flex-row gap-6 items-center"
-              >
-                <div className="p-4 bg-[#2b3595] rounded-lg">
-                  <Brain className="w-6 h-6" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-[10px] font-mono uppercase tracking-widest text-[#9fa8da] mb-1">Executive Summary</h3>
-                  <p className="text-base font-medium italic leading-relaxed">“{result.summary}”</p>
-                  <p className="text-[9px] mt-2 opacity-50 uppercase tracking-tighter">
-                    *本报告基于临床心理学理论模型扫描。分析仅限文本证据，不作为医疗诊断。
-                  </p>
-                </div>
-                <button onClick={reset} className="ml-auto text-[10px] font-mono border border-[#ffffff33] px-3 py-1.5 rounded hover:bg-white/10 transition-colors uppercase">
-                  Reset
-                </button>
-              </motion.div>
 
               {/* Subtext Analysis Section - CORE */}
               <motion.section 
