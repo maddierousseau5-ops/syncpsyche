@@ -49,10 +49,41 @@ function loadAnalytics(): AnalyticsData {
 function saveAnalytics() {
   try {
     fs.writeFileSync(ANALYTICS_FILE, JSON.stringify(analytics, null, 2), 'utf-8');
+    // 异步推送到 Git，确保 Render 重启后数据不丢失
+    gitCommitAnalytics().catch(() => {});
   } catch (e) {
     console.error('Failed to save analytics:', e);
   }
 }
+
+async function gitCommitAnalytics() {
+  try {
+    const repoDir = path.join(__dirname);
+    // 只在有 .git 目录时才执行（避免本地开发报错）
+    if (!fs.existsSync(path.join(repoDir, '.git'))) return;
+    
+    const { execSync } = await import('child_process');
+    execSync(`cd "${repoDir}" && git add analytics.json && git commit -m "chore: auto-update analytics [skip ci]" --no-gpg-sign 2>&1 || true`, { timeout: 10000 });
+    execSync(`cd "${repoDir}" && git push origin main 2>&1 || true`, { timeout: 15000 });
+  } catch (e) {
+    // 静默失败，不影响主流程
+  }
+}
+
+// 启动时从 Git 拉取最新的 analytics.json（Render 重启后恢复数据）
+async function pullAnalyticsFromGit() {
+  try {
+    const repoDir = path.join(__dirname);
+    if (!fs.existsSync(path.join(repoDir, '.git'))) return;
+    const { execSync } = await import('child_process');
+    execSync(`cd "${repoDir}" && git pull origin main 2>&1 || true`, { timeout: 15000 });
+  } catch (e) {
+    // 静默失败
+  }
+}
+
+// 异步拉取，不阻塞启动
+pullAnalyticsFromGit().catch(() => {});
 
 const analytics = loadAnalytics();
 
